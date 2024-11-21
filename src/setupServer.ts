@@ -10,9 +10,9 @@ import { Server } from 'socket.io';
 import 'express-async-errors';
 import { createClient } from 'redis';
 import { createAdapter } from '@socket.io/redis-adapter';
-import { config } from './config';
-import appRoute from './routes';
-import { CustomError, IErrorResponse } from './shared/globals/helpers/error-handler';
+import { config } from '@root/config';
+import appRoute from '@root/routes';
+import { CustomError, IErrorResponse } from '@global/helpers/error-handler';
 
 const SERVER_PORT = 5000;
 const log = config.createLogger('setup-server');
@@ -68,6 +68,7 @@ export class ChatterServer {
       res.status(HTTP_STATUS.NOT_FOUND).json({ message: `${req.originalUrl} not found` });
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     app.use((err: IErrorResponse, _req: Request, res: Response, next: NextFunction): any => {
       log.error(err);
       if (err instanceof CustomError) {
@@ -114,5 +115,7 @@ export class ChatterServer {
     });
   }
 
-  private socketIOConnections(io: Server) {}
+  private socketIOConnections(io: Server) {
+    log.info(io);
+  }
 }

@@ -1,7 +1,7 @@
 import express, { Express } from 'express';
-import { ChatterServer } from './setupServer';
-import dbConnection from './setupDatabase';
-import { config } from './config';
+import { ChatterServer } from '@root/setupServer';
+import dbConnection from '@root/setupDatabase';
+import { config } from '@root/config';
 
 class Application {
   public initialize(): void {
