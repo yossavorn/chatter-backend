@@ -1,4 +1,3 @@
-import { Server } from 'socket.io';
 import HTTP_STATUS from 'http-status-codes';
 
 export interface IErrorResponse {
