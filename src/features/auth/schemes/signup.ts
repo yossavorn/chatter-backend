@@ -1,5 +1,12 @@
 import Joi, { ObjectSchema } from 'joi';
 
+export type SignupSchemaDTO = {
+  username: string;
+  password: string;
+  email: string;
+  avatarColor: string;
+  avatarImage: string;
+};
 const signupSchema: ObjectSchema = Joi.object().keys({
   username: Joi.string().required().min(4).max(8).messages({
     'string.base': 'Username must be of type string',
