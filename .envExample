@@ -1,0 +1,10 @@
+DB_URL=mongodb://localhost:27017/chatterapp-backend
+JWT_TOKEN=thisisjwttoken
+NODE_ENV=development
+SECRET_KEY_ONE=cookiekey1
+SECRET_KEY_TWO=cookiekey2
+CLIENT_URL=http://localhost:3000
+REDIS_HOST=redis://127.0.0.1:6379
+CLOUD_NAME=dqaxajyc7
+CLOUD_API_KEY=785373359524318
+CLOUD_API_SECRET=4QoqpDFqabDNsrkM7GKRPV-Xsj8
