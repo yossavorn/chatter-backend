@@ -1,5 +1,10 @@
 import Joi, { ObjectSchema } from 'joi';
 
+export type SigninSchemaDTO = {
+  username: string;
+  password: string;
+
+};
 const loginSchema: ObjectSchema = Joi.object().keys({
   username: Joi.string().required().min(4).max(8).messages({
     'string.base': 'Username must be of type string',

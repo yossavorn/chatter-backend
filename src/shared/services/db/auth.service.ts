@@ -1,7 +1,7 @@
 import { ObjectId } from 'mongodb';
 import { AuthModel } from '@auth/models/auth.schema';
 import { SignupSchemaDTO } from '@auth/schemes/signup';
-import { BadRequestError, ServerError } from '@global/helpers/error-handler';
+import { BadRequestError, NotFoundError, ServerError, UnauthorizedError } from '@global/helpers/error-handler';
 import { Helper } from '@global/helpers/helpers';
 import { IAuthDocument, ISignUpData } from '@auth/interfaces/auth.interface';
 import JWT from 'jsonwebtoken';
@@ -12,10 +12,40 @@ import { config } from '@root/config';
 import { omit } from 'lodash';
 import { authQueue } from '@service/queues/auth.queue';
 import { userQueue } from '@service/queues/user.queue';
+import { SigninSchemaDTO } from '@auth/schemes/signin';
+import { userService } from '@service/db/user.service';
+import mongoose from 'mongoose';
 
 class AuthService {
   public async createAuthUser(data: IAuthDocument): Promise<void> {
     await AuthModel.create(data);
+  }
+
+  public async getAuthByUsername(username: string): Promise<IAuthDocument> {
+    const AuthData = await AuthModel.findOne({ username: Helper.toFirstLetterUpperCase(username) }).exec();
+
+    if (!AuthData) {
+      throw new NotFoundError('Cannot find this username');
+    }
+    return AuthData;
+  }
+
+  public async siginUser(body: SigninSchemaDTO) {
+    const { password, username } = body;
+
+    const authData = await this.getAuthByUsername(username);
+
+    const passwordMatch = await authData.comparePassword(password);
+
+    if (!passwordMatch) {
+      throw new UnauthorizedError('Invalid password');
+    }
+
+    const userData: IUserDocument = await userService.findOneUserByAuthId(`${authData._id}`);
+
+    const userJWT = this.signToken(authData, new mongoose.Types.ObjectId(userData._id));
+
+    return { userData, userJWT };
   }
 
   public async signupUser(body: SignupSchemaDTO) {
@@ -52,7 +82,7 @@ class AuthService {
 
     //Add to queue
     omit(dataToCache, ['uId', 'username', 'email', 'avatarColor', 'password']);
-    authQueue.addAuthUserJob('addAuthUserToDB', { value: dataToCache });
+    authQueue.addAuthUserJob('addAuthUserToDB', { value: authData });
     userQueue.addUserJob('addUserToDB', { value: dataToCache });
 
     //Add session
@@ -80,7 +110,7 @@ class AuthService {
     return {
       _id,
       uId,
-      username,
+      username: Helper.toFirstLetterUpperCase(username),
       email,
       password,
       avatarColor,
@@ -102,10 +132,10 @@ class AuthService {
   }
 
   private userData(data: IAuthDocument, userObjectId: ObjectId): IUserDocument {
-    const { _id, username, email, uId, password, avatarColor } = data;
+    const { _id: authId, username, email, uId, password, avatarColor } = data;
     return {
       _id: userObjectId,
-      authId: _id,
+      authId,
       uId,
       username: Helper.toFirstLetterUpperCase(username),
       email,

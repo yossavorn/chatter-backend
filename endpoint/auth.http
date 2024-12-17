@@ -8,10 +8,20 @@ Accept: application/json
 withCredentials: true
 
 ###
-GET {{baseUrl}}/{{urlPath}}/currentuser
+GET {{baseUrl}}/{{urlPath}}/get-me
 Content-Type: application/json
 Accept: application/json
 withCredentials: true
+
+###
+GET {{baseUrl}}/{{urlPath}}/signup
+Content-Type: application/json
+Accept: application/json
+withCredentials: true
+
+{
+  "id" :"675931abc1ef2b283f1a5a72"
+}
 
 ###
 POST {{baseUrl}}/{{urlPath}}/signup
@@ -34,8 +44,8 @@ Accept: application/json
 withCredentials: true
 
 {
-  "username": "",
-  "password": ""
+  "username": "aloha",
+  "password": "qwerty"
 }
 
 ###

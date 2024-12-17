@@ -26,4 +26,13 @@ export class Helper {
     // Convert the result string to a number (removes leading zeroes if any)
     return parseInt(randomNumber, 10);
   }
+
+  static parseJson(prop: string) {
+    try {
+      return JSON.parse(prop);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (err) {
+      return prop; // Return the original string if parsing fails
+    }
+  }
 }
