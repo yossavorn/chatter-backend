@@ -1,3 +1,5 @@
+import { SigninController } from '@auth/controllers/signin';
+import { SignOutController } from '@auth/controllers/signout';
 import { SignUpController } from '@auth/controllers/signup';
 import express, { Router } from 'express';
 
@@ -8,8 +10,16 @@ class AuthRoutes {
     this.router = express.Router();
   }
 
-  public routes(): Router {
+  public unauthenRoute(): Router {
     this.router.post('/signup', SignUpController.prototype.create);
+    //this.router.get('/signup', SignUpController.prototype.findOne);
+    this.router.post('/signin', SigninController.prototype.read);
+
+    return this.router;
+  }
+
+  public signOutRoute(): Router {
+    this.router.get('/signout', SignOutController.prototype.signout);
 
     return this.router;
   }
