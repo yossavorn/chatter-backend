@@ -1,5 +1,13 @@
 import Joi, { ObjectSchema } from 'joi';
 
+export type PasswordSchemaDTO = {
+  password: string;
+  confirmPassword: string;
+};
+
+export type EmailSchemaDTO = {
+  email: string;
+};
 const emailSchema: ObjectSchema = Joi.object().keys({
   email: Joi.string().email().required().messages({
     'string.base': 'Field must be valid',

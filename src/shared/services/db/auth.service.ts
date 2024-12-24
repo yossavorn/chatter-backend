@@ -6,7 +6,7 @@ import { Helper } from '@global/helpers/helpers';
 import { IAuthDocument, ISignUpData } from '@auth/interfaces/auth.interface';
 import JWT from 'jsonwebtoken';
 import { upload } from '@global/helpers/cloudinary-upload';
-import { IUserDocument } from '@user/interfaces/user.interface';
+import { IResetPasswordParams, IUserDocument } from '@user/interfaces/user.interface';
 import { userCache } from '@service/redis/user.cache';
 import { config } from '@root/config';
 import { omit } from 'lodash';
@@ -15,10 +15,40 @@ import { userQueue } from '@service/queues/user.queue';
 import { SigninSchemaDTO } from '@auth/schemes/signin';
 import { userService } from '@service/db/user.service';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+
+import { emailQueue } from '@service/queues/email.queue';
+import { EmailSchemaDTO, PasswordSchemaDTO } from '@auth/schemes/password';
+import { forgotPasswordTemplate } from '@service/emails/template/forgot-password/forgot-password';
+import moment from 'moment';
+import publicIp from 'ip';
+import { resetPasswordTemplate } from '@service/emails/template/reset-password/reset-password';
 
 class AuthService {
   public async createAuthUser(data: IAuthDocument): Promise<void> {
     await AuthModel.create(data);
+  }
+
+  public async updatePasswordToken(authId: string, token: string, tokenExpiration: number): Promise<void> {
+    await AuthModel.updateOne(
+      { _id: authId },
+      {
+        passwordResetToken: token,
+        passwordResetExpires: tokenExpiration
+      }
+    );
+  }
+
+  public async getAuthUserByPasswordToken(token: string): Promise<IAuthDocument> {
+    const user = await AuthModel.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    }).exec();
+
+    if (!user) {
+      throw new NotFoundError('Cannot find Auth User');
+    }
+    return user;
   }
 
   public async getAuthByUsername(username: string): Promise<IAuthDocument> {
@@ -26,6 +56,15 @@ class AuthService {
 
     if (!AuthData) {
       throw new NotFoundError('Cannot find this username');
+    }
+    return AuthData;
+  }
+
+  public async getAuthByEmail(email: string): Promise<IAuthDocument> {
+    const AuthData = await AuthModel.findOne({ email }).exec();
+
+    if (!AuthData) {
+      throw new NotFoundError('Cannot find this email');
     }
     return AuthData;
   }
@@ -92,6 +131,57 @@ class AuthService {
     return { authData, userJWT };
   }
 
+  public async resetPassword(body: PasswordSchemaDTO, param: { token: string }) {
+    const { password, confirmPassword } = body;
+    const { token } = param;
+
+    if (password !== confirmPassword) {
+      throw new BadRequestError('Passwords do not match');
+    }
+
+    const authData = await this.getAuthUserByPasswordToken(token);
+
+    authData.password = password;
+    authData.passwordResetExpires = undefined;
+    authData.passwordResetToken = undefined;
+
+    await authData.save();
+
+    const emailTemplateParams: IResetPasswordParams = {
+      username: authData.username,
+      email: authData.email,
+      date: moment().format('DD/MM/YY'),
+      ipaddress: publicIp.address()
+    };
+
+    const template = resetPasswordTemplate.passwordResetConfirmationTemplate(emailTemplateParams);
+    emailQueue.addEmailJob('forgotPassWordEmail', {
+      template,
+      receiverEmail: authData.email,
+      subject: 'Reset your passaword confirmation'
+    });
+  }
+
+  public async forgotPassword(body: EmailSchemaDTO) {
+    const { email } = body;
+    const authData = await this.getAuthByEmail(email);
+
+    const randomByte = await Promise.resolve(crypto.randomBytes(20));
+    const newToken = randomByte.toString('hex');
+
+    await this.updatePasswordToken(`${authData.id}`, newToken, Date.now() * 60 * 60 * 1000);
+
+    const resetLink = this.genResetPasswordLink(newToken);
+
+    const template = forgotPasswordTemplate.passwordResetTemplate(authData.username, resetLink);
+
+    emailQueue.addEmailJob('forgotPassWordEmail', { template, receiverEmail: email, subject: 'Reset your password' });
+  }
+
+  private genResetPasswordLink(token: string): string {
+    return `${config.CLIENT_URL}/reset-password?token=${token}`;
+  }
+
   private signToken(data: IAuthDocument, userObjectId: ObjectId): string {
     return JWT.sign(
       {
@@ -120,7 +210,7 @@ class AuthService {
 
   private async validateExistingUsernameOrEmail(username: string, email: string) {
     const query = {
-      $or: [{ username: Helper.toFirstLetterUpperCase(username) }, { email: Helper.toLowerCase(email) }]
+      $or: [{ username: Helper.toFirstLetterUpperCase(username) }, { email }]
     };
     const user = await AuthModel.findOne(query).exec();
 
